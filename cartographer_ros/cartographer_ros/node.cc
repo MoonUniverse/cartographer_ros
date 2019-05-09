@@ -382,7 +382,10 @@ int Node::AddTrajectory(const TrajectoryOptions& options) {
       ::ros::WallDuration(kTopicMismatchCheckDelaySec),
       &Node::MaybeWarnAboutTopicMismatch, this, /*oneshot=*/true));
   for (const auto& sensor_id : expected_sensor_ids) {
-    subscribed_topics_.insert(sensor_id.id);
+    {
+      ROS_ERROR("add topic :%s", sensor_id.id.c_str());
+      subscribed_topics_.insert(sensor_id.id);
+    }
   }
   return trajectory_id;
 }
@@ -396,6 +399,8 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
              &Node::HandleLaserScanMessage, trajectory_id, topic, &node_handle_,
              this),
          topic});
+
+    ROS_WARN_STREAM("traj id:" << trajectory_id << "topic: " << topic);
   }
   for (const std::string& topic : ComputeRepeatedTopicNames(
            kMultiEchoLaserScanTopic, options.num_multi_echo_laser_scans)) {
@@ -404,6 +409,8 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
              &Node::HandleMultiEchoLaserScanMessage, trajectory_id, topic,
              &node_handle_, this),
          topic});
+
+    ROS_WARN_STREAM("traj id:" << trajectory_id << "topic: " << topic);
   }
   for (const std::string& topic :
        ComputeRepeatedTopicNames(kPointCloud2Topic, options.num_point_clouds)) {
@@ -412,6 +419,8 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
              &Node::HandlePointCloud2Message, trajectory_id, topic,
              &node_handle_, this),
          topic});
+
+    ROS_WARN_STREAM("traj id:" << trajectory_id << "topic: " << topic);
   }
 
   // For 2D SLAM, subscribe to the IMU if we expect it. For 3D SLAM, the IMU is
@@ -424,7 +433,9 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
         {SubscribeWithHandler<sensor_msgs::Imu>(&Node::HandleImuMessage,
                                                 trajectory_id, kImuTopic,
                                                 &node_handle_, this),
-         kImuTopic});
+            kImuTopic});
+
+    ROS_WARN_STREAM("traj id:" << trajectory_id << "topic: " << kImuTopic);
   }
 
   if (options.use_odometry) {
@@ -432,7 +443,10 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
         {SubscribeWithHandler<nav_msgs::Odometry>(&Node::HandleOdometryMessage,
                                                   trajectory_id, kOdometryTopic,
                                                   &node_handle_, this),
-         kOdometryTopic});
+            kOdometryTopic});
+
+    ROS_WARN_STREAM("traj id:" << trajectory_id << "topic: " << kOdometryTopic);
+
   }
   if (options.use_nav_sat) {
     subscribers_[trajectory_id].push_back(
@@ -465,6 +479,7 @@ bool Node::ValidateTrajectoryOptions(const TrajectoryOptions& options) {
 bool Node::ValidateTopicNames(const TrajectoryOptions& options) {
   for (const auto& sensor_id : ComputeExpectedSensorIds(options)) {
     const std::string& topic = sensor_id.id;
+    ROS_WARN("%s: %d", sensor_id.id.c_str(), subscribed_topics_.count(topic));
     if (subscribed_topics_.count(topic) > 0) {
       LOG(ERROR) << "Topic name [" << topic << "] is already used.";
       return false;
